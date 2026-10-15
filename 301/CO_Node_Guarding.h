@@ -34,6 +34,10 @@
 #define CO_CONFIG_NODE_GUARDING_MASTER_COUNT 0x7F
 #endif
 
+#if (((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0) && ((CO_CONFIG_NODE_GUARDING) != 0)
+#error Node guarding uses remote frames, which are not available in CANopen FD.
+#endif
+
 #if (((CO_CONFIG_NODE_GUARDING)&CO_CONFIG_NODE_GUARDING_SLAVE_ENABLE) != 0) || defined CO_DOXYGEN
 
 #ifdef __cplusplus

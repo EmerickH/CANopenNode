@@ -13,3 +13,5 @@ doc/html/
 
 #kdevelop
 *.kdev4
+/test/test_fd
+/test/test_classic

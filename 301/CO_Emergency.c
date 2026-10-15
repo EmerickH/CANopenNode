@@ -578,7 +578,7 @@ CO_EM_process(CO_EM_t* em, bool_t NMTisPreOrOperational, uint32_t timeDifference
             em->fifo[fifoPpPtr].msg |= (uint32_t)errorRegister << 16;
 
             /* send emergency message */
-            (void)memcpy((void*)em->CANtxBuff->data, (void*)&em->fifo[fifoPpPtr].msg, sizeof(em->CANtxBuff->data));
+            (void)memcpy((void*)em->CANtxBuff->data, (void*)&em->fifo[fifoPpPtr].msg, 8U);
             (void)CO_CANsend(em->CANdevTx, em->CANtxBuff);
 
 #if ((CO_CONFIG_EM)&CO_CONFIG_EM_CONSUMER) != 0

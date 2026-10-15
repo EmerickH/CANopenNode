@@ -34,6 +34,20 @@ CO_CANsetNormalMode(CO_CANmodule_t* CANmodule) {
     CANmodule->CANnormal = true;
 }
 
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+CO_ReturnError_t
+CO_CANsetDataBitRate(CO_CANmodule_t* CANmodule, uint16_t dataBitRate) {
+    if (CANmodule == NULL) {
+        return CO_ERROR_ILLEGAL_ARGUMENT;
+    }
+
+    /* Configure CAN FD data phase bit timing and enable bit rate switching (BRS), if dataBitRate is not 0 */
+    (void)dataBitRate;
+
+    return CO_ERROR_NO;
+}
+#endif
+
 CO_ReturnError_t
 CO_CANmodule_init(CO_CANmodule_t* CANmodule, void* CANptr, CO_CANrx_t rxArray[], uint16_t rxSize, CO_CANtx_t txArray[],
                   uint16_t txSize, uint16_t CANbitRate) {
@@ -135,8 +149,17 @@ CO_CANtxBufferInit(CO_CANmodule_t* CANmodule, uint16_t index, uint16_t ident, bo
         buffer = &CANmodule->txArray[index];
 
         /* CAN identifier, DLC and rtr, bit aligned with CAN module transmit buffer, microcontroller specific. */
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+        /* CAN FD frame (FDF bit 16 in this example), remote frames do not exist in CAN FD */
+        if (rtr || (noOfBytes > CO_CAN_MAX_DLEN)) {
+            return NULL;
+        }
+        buffer->ident = ((uint32_t)ident & 0x07FFU) | ((uint32_t)CO_CANfd_lengthToDlc(noOfBytes) << 11U) | 0x10000U;
+#else
         buffer->ident = ((uint32_t)ident & 0x07FFU) | ((uint32_t)(((uint32_t)noOfBytes & 0xFU) << 11U))
                         | ((uint32_t)(rtr ? 0x8000U : 0U));
+#endif
+        buffer->DLC = noOfBytes;
 
         buffer->bufferFull = false;
         buffer->syncFlag = syncFlag;
@@ -266,7 +289,7 @@ CO_CANmodule_process(CO_CANmodule_t* CANmodule) {
 typedef struct {
     uint32_t ident;
     uint8_t DLC;
-    uint8_t data[8];
+    uint8_t data[CO_CAN_MAX_DLEN];
 } CO_CANrxMsg_t;
 
 void

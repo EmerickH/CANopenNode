@@ -30,6 +30,7 @@
 #include "301/CO_Emergency.h"
 #include "301/CO_SDOserver.h"
 #include "301/CO_SDOclient.h"
+#include "301/CO_USDOserver.h"
 #include "301/CO_SYNC.h"
 #include "301/CO_PDO.h"
 #include "301/CO_TIME.h"
@@ -285,7 +286,11 @@ typedef struct {
 #if (((CO_CONFIG_EM) & (CO_CONFIG_EM_PRODUCER | CO_CONFIG_EM_HISTORY)) != 0) || defined CO_DOXYGEN
     CO_EM_fifo_t* em_fifo; /**< FIFO for emergency object, initialised by @ref CO_EM_init() */
 #endif
-    CO_SDOserver_t* SDOserver; /**< SDO server objects, initialised by @ref CO_SDOserver_init() */
+    CO_SDOserver_t* SDOserver; /**< SDO server objects, initialised by @ref CO_SDOserver_init(). Not used in CANopen
+                                  FD. */
+#if (((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0) || defined CO_DOXYGEN
+    CO_USDOserver_t* USDOserver; /**< USDO server object (CANopen FD), initialised by @ref CO_USDOserver_init() */
+#endif
 #if defined CO_MULTIPLE_OD || defined CO_DOXYGEN
     uint16_t RX_IDX_SDO_SRV; /**< Start index in CANrx. */
     uint16_t TX_IDX_SDO_SRV; /**< Start index in CANtx. */
@@ -443,7 +448,8 @@ CO_ReturnError_t CO_LSSinit(CO_t* co, CO_LSS_address_t* lssAddress, uint8_t* pen
  * @param OD_statusBits Argument passed to @ref CO_EM_init(). May be NULL.
  * @param NMTcontrol Argument passed to @ref CO_NMT_init().
  * @param firstHBTime_ms Argument passed to @ref CO_NMT_init().
- * @param SDOserverTimeoutTime_ms Argument passed to @ref CO_SDOserver_init().
+ * @param SDOserverTimeoutTime_ms Argument passed to @ref CO_SDOserver_init() or, in CANopen FD, to @ref
+ * CO_USDOserver_init().
  * @param SDOclientTimeoutTime_ms Default timeout in milliseconds for SDO client, 500 typically. SDO client is
  * configured from CO_GTWA_init().
  * @param SDOclientBlockTransfer If true, block transfer will be set in SDO client by default. SDO client is configured
