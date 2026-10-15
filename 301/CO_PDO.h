@@ -103,14 +103,38 @@ extern "C" {
  * - Enable the PDO by setting bit-31 to 0 in PDO communication parameter, COB-ID
  */
 
-/** Maximum size of PDO message, 8 for standard CAN */
+/** Maximum size of PDO message, 8 for standard CAN, 64 for CANopen FD (may be less to preserve RAM usage) */
 #ifndef CO_PDO_MAX_SIZE
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+#define CO_PDO_MAX_SIZE 64U
+#else
 #define CO_PDO_MAX_SIZE 8U
 #endif
+#endif
 
-/** Maximum number of entries, which can be mapped to PDO, 8 for standard CAN, may be less to preserve RAM usage */
+/** Maximum number of entries, which can be mapped to PDO, 8 for standard CAN, 64 for CANopen FD, may be less to
+ * preserve RAM usage */
 #ifndef CO_PDO_MAX_MAPPED_ENTRIES
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+#define CO_PDO_MAX_MAPPED_ENTRIES 64U
+#else
 #define CO_PDO_MAX_MAPPED_ENTRIES 8U
+#endif
+#endif
+
+#if CO_PDO_MAX_SIZE > CO_CAN_MAX_DLEN
+#error CO_PDO_MAX_SIZE is larger than CAN frame (CO_CAN_MAX_DLEN).
+#endif
+#if (((CO_CONFIG_PDO)&CO_CONFIG_PDO_BITWISE_MAPPING) != 0) && (CO_PDO_MAX_SIZE > 8U)
+#error CO_CONFIG_PDO_BITWISE_MAPPING supports PDOs up to 8 bytes only.
+#endif
+
+/** Length of the CAN frame, which carries PDO with pdoLength data bytes. In CANopen FD producer pads PDO to the next
+ * valid CAN FD frame length. */
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+#define CO_PDO_FRAME_LENGTH(pdoLength) CO_CANfd_roundLength((uint8_t)(pdoLength))
+#else
+#define CO_PDO_FRAME_LENGTH(pdoLength) ((uint8_t)(pdoLength))
 #endif
 
 /** Number of CANopen RPDO objects, which uses default CAN indentifiers. By default first four RPDOs have pre-defined

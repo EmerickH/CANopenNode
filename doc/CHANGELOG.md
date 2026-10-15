@@ -6,6 +6,7 @@ v4.0 - current
 - [Source Code](https://github.com/CANopenNode/CANopenNode/tree/master)
 - [Full ChangeLog](https://github.com/CANopenNode/CANopenNode/compare/v2.0-master...master)
 ### Latest changes
+- 2026-10-15: CANopen FD (CiA 1301), first part: CAN FD frames in driver interface, PDO up to 64 bytes, USDO server, host unit tests. See [CANopenFD.md](CANopenFD.md).
 - 2024-07-08: Code reforamtted according to .clang-format
 - 2024-07-05: Static analysis for Misra C:2012
 - 2024-05-31: SRDO updated to current CANopenNode

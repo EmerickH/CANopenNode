@@ -333,6 +333,57 @@ extern "C" {
 /** @} */ /* CO_STACK_CONFIG_EMERGENCY */
 
 /**
+ * @defgroup CO_STACK_CONFIG_FD CANopen FD
+ * Specified in standard CiA 1301
+ * @{
+ */
+/**
+ * Configuration of CANopen FD (CiA 1301)
+ *
+ * CANopen FD and classic CANopen (CiA 301) devices can not share the same bus, so the stack is built either for
+ * classic CAN or for CAN FD. If CANopen FD is enabled, then:
+ * - CAN frames carry up to 64 data bytes, see @ref CO_CAN_MAX_DLEN. CAN driver must support CAN FD frames.
+ * - PDOs may be up to 64 bytes long, see @ref CO_PDO_MAX_SIZE.
+ * - SDO server and client (CiA 301) are not used, USDO server (CiA 1301) is used instead.
+ * - Node guarding is not available, because CANopen FD does not use remote frames.
+ *
+ * Possible flags, can be ORed:
+ * - CO_CONFIG_FD_ENABLE - Build the stack for CANopen FD.
+ */
+#ifdef CO_DOXYGEN
+#define CO_CONFIG_FD (0)
+#endif
+#define CO_CONFIG_FD_ENABLE 0x01
+
+/**
+ * Configuration of @ref CO_USDOserver
+ *
+ * Used only, if CO_CONFIG_FD_ENABLE is set in @ref CO_CONFIG_FD.
+ *
+ * Possible flags, can be ORed:
+ * - CO_CONFIG_USDO_SRV_SEGMENTED - Enable USDO server segmented transfer.
+ * - #CO_CONFIG_FLAG_CALLBACK_PRE - Enable custom callback after preprocessing received USDO CAN message.
+ *   Callback is configured by CO_USDOserver_initCallbackPre().
+ * - #CO_CONFIG_FLAG_TIMERNEXT - Enable calculation of timerNext_us variable inside CO_USDOserver_process().
+ */
+#ifdef CO_DOXYGEN
+#define CO_CONFIG_USDO_SRV                                                                                             \
+    (CO_CONFIG_USDO_SRV_SEGMENTED | CO_CONFIG_GLOBAL_FLAG_CALLBACK_PRE | CO_CONFIG_GLOBAL_FLAG_TIMERNEXT)
+#endif
+#define CO_CONFIG_USDO_SRV_SEGMENTED 0x02
+
+/**
+ * Size of the internal data buffer for the USDO server.
+ *
+ * If size is less than size of some variables in Object Dictionary, then data will be transferred to internal buffer in
+ * several segments. Minimum size is 64.
+ */
+#ifdef CO_DOXYGEN
+#define CO_CONFIG_USDO_SRV_BUFFER_SIZE 128
+#endif
+/** @} */ /* CO_STACK_CONFIG_FD */
+
+/**
  * @defgroup CO_STACK_CONFIG_SDO SDO server/client
  * Specified in standard CiA 301
  * @{

@@ -477,7 +477,8 @@ CO_PDO_receive(void* object, void* msg) {
 #if ((CO_CONFIG_PDO)&CO_CONFIG_PDO_BITWISE_MAPPING) != 0
             if (DLC == (PDO->dataLength + 7) / 8) {
 #else
-            if (DLC == PDO->dataLength) {
+            /* CANopen FD producer pads PDO to the next valid CAN FD frame length, which is not an error. */
+            if ((DLC == PDO->dataLength) || (DLC == CO_PDO_FRAME_LENGTH(PDO->dataLength))) {
 #endif
                 if (err == CO_RPDO_RX_ACK_ERROR) {
                     err = CO_RPDO_RX_OK;
@@ -982,7 +983,7 @@ OD_write_18xx(OD_stream_t* stream, const void* buf, OD_size_t count, OD_size_t* 
                 }
 
                 CO_CANtx_t* CANtxBuff = CO_CANtxBufferInit(
-                    PDO->CANdev, PDO->CANdevIdx, CAN_ID, false, PDO->dataLength,
+                    PDO->CANdev, PDO->CANdevIdx, CAN_ID, false, CO_PDO_FRAME_LENGTH(PDO->dataLength),
                     TPDO->transmissionType <= (uint8_t)CO_PDO_TRANSM_TYPE_SYNC_240);
 
                 if (CANtxBuff == NULL) {
@@ -1143,7 +1144,7 @@ CO_TPDO_init(CO_TPDO_t* TPDO, OD_t* OD, CO_EM_t* em,
     TPDO->CANtxBuff = CO_CANtxBufferInit(CANdevTx, CANdevTxIdx, CAN_ID, false, (PDO->dataLength + 7) / 8,
                                          TPDO->transmissionType <= (uint8_t)CO_PDO_TRANSM_TYPE_SYNC_240);
 #else
-    TPDO->CANtxBuff = CO_CANtxBufferInit(CANdevTx, CANdevTxIdx, CAN_ID, false, PDO->dataLength,
+    TPDO->CANtxBuff = CO_CANtxBufferInit(CANdevTx, CANdevTxIdx, CAN_ID, false, CO_PDO_FRAME_LENGTH(PDO->dataLength),
                                          TPDO->transmissionType <= (uint8_t)CO_PDO_TRANSM_TYPE_SYNC_240);
 #endif
 
@@ -1335,6 +1336,14 @@ CO_TPDOsend(CO_TPDO_t* TPDO) {
     /* Copy the calculated uint64 data to the PDO buffer */
     (void)memcpy(dataTPDO, &buf64, CO_PDO_MAX_SIZE);
 #endif /* (CO_CONFIG_PDO) & (CO_CONFIG_PDO_BITWISE_MAPPING) */
+
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+    /* CAN FD frame may be longer than PDO, padding bytes are zero */
+    uint8_t frameLength = CO_PDO_FRAME_LENGTH(PDO->dataLength);
+    if (frameLength > PDO->dataLength) {
+        (void)memset(&TPDO->CANtxBuff->data[PDO->dataLength], 0, (size_t)frameLength - PDO->dataLength);
+    }
+#endif
 
     TPDO->sendRequest = false;
 #if ((CO_CONFIG_PDO)&CO_CONFIG_TPDO_TIMERS_ENABLE) != 0

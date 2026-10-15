@@ -192,7 +192,7 @@ CO_CANrxMsg_readIdent(void* rxMsg) {
  * See also CO_CANrxMsg_readIdent():
  *
  * @param rxMsg Pointer to received CAN frame
- * @return data length in bytes (0 to 8)
+ * @return data length in bytes (0 to 8, or 0 to 64 for CAN FD frames, see @ref CO_CAN_MAX_DLEN)
  */
 static inline uint8_t
 CO_CANrxMsg_readDLC(void* rxMsg) {
@@ -254,8 +254,8 @@ typedef struct {
  */
 typedef struct {
     uint32_t ident;             /**< CAN identifier as aligned in CAN module */
-    uint8_t DLC;                /**< Length of CAN frame */
-    uint8_t data[8];            /**< 8 data bytes */
+    uint8_t DLC;                /**< Length of CAN frame in bytes, 0 to CO_CAN_MAX_DLEN */
+    uint8_t data[CO_CAN_MAX_DLEN]; /**< Data bytes, 8 for classic CAN, 64 for CAN FD */
     volatile bool_t bufferFull; /**< True if previous frame is still in the buffer */
     volatile bool_t syncFlag;   /**< Synchronous PDO frames has this flag set. It prevents them to be sent outside the
                                    synchronous window */
@@ -386,6 +386,96 @@ typedef struct {
 #endif /* CO_DOXYGEN */
 
 /**
+ * @defgroup CO_CAN_FD CAN FD frame length
+ * @{
+ *
+ * Definitions for CAN FD frames, used by CANopen FD (CiA 1301), see @ref CO_STACK_CONFIG_FD.
+ *
+ * CAN FD frame carries 0 to 8, 12, 16, 20, 24, 32, 48 or 64 data bytes. Inside CANopenNode the length of a frame is
+ * always expressed in bytes (CO_CANtx_t.DLC, CO_CANrxMsg_readDLC()). Driver converts byte length to and from the 4-bit
+ * DLC code of the CAN controller, for example with CO_CANfd_lengthToDlc() and CO_CANfd_dlcToLength().
+ */
+#ifndef CO_CONFIG_FD
+#define CO_CONFIG_FD (0)
+#endif
+
+/** Maximum number of data bytes in CAN frame handled by the stack, 8 for classic CAN, 64 for CAN FD. Target driver
+ * may define it in CO_driver_target.h, data buffer in CO_CANtx_t must be at least that large. */
+#ifndef CO_CAN_MAX_DLEN
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+#define CO_CAN_MAX_DLEN 64U
+#else
+#define CO_CAN_MAX_DLEN 8U
+#endif
+#endif
+
+#if ((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0
+#if CO_CAN_MAX_DLEN != 64U
+#error CO_CAN_MAX_DLEN must be 64 if CANopen FD is enabled.
+#endif
+#endif
+
+/**
+ * Round frame length up to the next length, which is valid for CAN FD frame
+ *
+ * @param len Required number of data bytes, 0 to 64.
+ * @return Valid CAN FD frame length (0..8, 12, 16, 20, 24, 32, 48 or 64), or 64 if len is larger than 64.
+ */
+static inline uint8_t
+CO_CANfd_roundLength(uint8_t len) {
+    uint8_t ret;
+    if (len <= 8U) {
+        ret = len;
+    } else if (len <= 24U) {
+        ret = (uint8_t)((len + 3U) & 0xFCU);
+    } else if (len <= 32U) {
+        ret = 32U;
+    } else if (len <= 48U) {
+        ret = 48U;
+    } else {
+        ret = 64U;
+    }
+    return ret;
+}
+
+/**
+ * Convert number of data bytes to the 4-bit CAN FD DLC code
+ *
+ * @param len Number of data bytes, 0 to 64. If len is not a valid CAN FD length, DLC of the next valid length is used.
+ * @return DLC code, 0 to 15.
+ */
+static inline uint8_t
+CO_CANfd_lengthToDlc(uint8_t len) {
+    uint8_t rounded = CO_CANfd_roundLength(len);
+    uint8_t dlc;
+    if (rounded <= 8U) {
+        dlc = rounded;
+    } else if (rounded <= 24U) {
+        dlc = (uint8_t)(6U + (rounded / 4U));
+    } else if (rounded == 32U) {
+        dlc = 13U;
+    } else if (rounded == 48U) {
+        dlc = 14U;
+    } else {
+        dlc = 15U;
+    }
+    return dlc;
+}
+
+/**
+ * Convert the 4-bit CAN FD DLC code to number of data bytes
+ *
+ * @param dlc DLC code, 0 to 15. Higher bits are ignored.
+ * @return Number of data bytes, 0 to 64.
+ */
+static inline uint8_t
+CO_CANfd_dlcToLength(uint8_t dlc) {
+    static const uint8_t lengths[16] = {0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U, 12U, 16U, 20U, 24U, 32U, 48U, 64U};
+    return lengths[dlc & 0x0FU];
+}
+/** @} */ /* CO_CAN_FD */
+
+/**
  * @defgroup CO_Default_CAN_ID_t Default CANopen identifiers
  * @{
  *
@@ -488,6 +578,22 @@ void CO_CANsetConfigurationMode(void* CANptr);
  * @param CANmodule CO_CANmodule_t object.
  */
 void CO_CANsetNormalMode(CO_CANmodule_t* CANmodule);
+
+#if (((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0) || defined CO_DOXYGEN
+/**
+ * Set bit rate of the CAN FD data phase
+ *
+ * Only used in CANopen FD, see @ref CO_STACK_CONFIG_FD. Nominal (arbitration phase) bit rate is set by
+ * CO_CANmodule_init(). Function is called by application after CO_CANmodule_init() and before CO_CANsetNormalMode().
+ * If dataBitRate is 0 or equal to nominal bit rate, then bit rate switching (BRS) is not used.
+ *
+ * @param CANmodule CAN module object.
+ * @param dataBitRate Data phase bit rate in kbps, for example 2000 or 5000.
+ *
+ * @return #CO_ReturnError_t: CO_ERROR_NO or CO_ERROR_ILLEGAL_BAUDRATE.
+ */
+CO_ReturnError_t CO_CANsetDataBitRate(CO_CANmodule_t* CANmodule, uint16_t dataBitRate);
+#endif
 
 /**
  * Initialize CAN module object.

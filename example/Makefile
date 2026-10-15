@@ -23,6 +23,7 @@ SOURCES = \
 	$(CANOPEN_SRC)/301/CO_HBconsumer.c \
 	$(CANOPEN_SRC)/301/CO_Emergency.c \
 	$(CANOPEN_SRC)/301/CO_SDOserver.c \
+	$(CANOPEN_SRC)/301/CO_USDOserver.c \
 	$(CANOPEN_SRC)/301/CO_TIME.c \
 	$(CANOPEN_SRC)/301/CO_SYNC.c \
 	$(CANOPEN_SRC)/301/CO_PDO.c \

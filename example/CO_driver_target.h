@@ -37,6 +37,13 @@ extern "C" {
 
 /* Stack configuration override default values. For more information see file CO_config.h. */
 
+/* Maximum CAN frame data length: 64 for CANopen FD (CO_CONFIG_FD set to CO_CONFIG_FD_ENABLE), 8 otherwise. */
+#if defined(CO_CONFIG_FD) && (((CO_CONFIG_FD)&CO_CONFIG_FD_ENABLE) != 0)
+#define CO_CAN_MAX_DLEN 64U
+#else
+#define CO_CAN_MAX_DLEN 8U
+#endif
+
 /* Basic definitions. If big endian, CO_SWAP_xx macros must swap bytes. */
 #define CO_LITTLE_ENDIAN
 #define CO_SWAP_16(x) x
@@ -66,7 +73,7 @@ typedef struct {
 typedef struct {
     uint32_t ident;
     uint8_t DLC;
-    uint8_t data[8];
+    uint8_t data[CO_CAN_MAX_DLEN];
     volatile bool_t bufferFull;
     volatile bool_t syncFlag;
 } CO_CANtx_t;
